@@ -1,3 +1,5 @@
+const clauses = require('./clauses')
+
 class MySequelize {
     constructor(connect, tableName) {
         this.connection = connect;
@@ -6,143 +8,100 @@ class MySequelize {
 
     async create(obj) {
 
-        /*
-           Model.create({
-               name: 'test',
-               email: 'test@gmail.com',
-               password: '123456789',
-               is_admin: false
-           })
-        */
+        const result = await this.connection.query(
+            `INSERT INTO ${this.table} set ?`, obj
+        );
+
+        return result[0]
     }
 
     async bulkCreate(arr) {
 
-        /*
-           Model.bulkCreate([
-               {
-               name: 'test',
-               email: 'test@gmail.com',
-               password: '123456789',
-               is_admin: false
-           },
-           {
-               name: 'test1',
-               email: 'test1@gmail.com',
-               password: '123456789',
-               is_admin: false
-           },
-           {
-               name: 'test2',
-               email: 'test2@gmail.com',
-               password: '123456789',
-               is_admin: true
-           },
-        ])
-        */
+        let result = []
+        for (const iterator of arr) {
+            result.push(await this.connection.query(
+                `INSERT INTO ${this.table} set ?`, iterator
+            ))
+        }
+        return result
     }
 
     async findAll(options) {
+        const results = await this.connection.query(
+        `SELECT ${(options && options.attributes) ? clauses.attributes(options.attributes) : '*'} 
+        FROM ${this.table} 
+        ${handleOptions(options)}`)
 
-        /*
-        Model.findAll({
-            where: {
-                is_admin: false
-            },
-            order: ['id', 'DESC'],
-            limit 2
-        })
-        */
-
-        /*
-        Model.findAll({
-            include:[
-                {
-                    table: playlists,             // table yo want to join
-                    tableForeignKey: "creator",   // column reference in the table yo want to join
-                    sourceForeignKey: "id",       // base table column reference
-                }
-            ] 
-        })
-        */
-
-        /*
-        Model.findAll({
-            where: {
-                [Op.gt]: {
-                    id: 10
-                },                // both [Op.gt] and [Op.lt] need to work so you can pass the tests
-                [Op.lt]: {        
-                    id: 20
-                }
-        })
-        */
+        if (options && options.include) {
+            return await clauses.include(results[0], options.include, this.connection)
+        } else {
+            return results[0]
+        }
     }
 
     async findByPk(id) {
-        /*
-            Model.findByPk(id)
-        */
+        const result = await this.connection.query(
+            `SELECT * FROM ${this.table} WHERE id= ${id}`
+        );
+        return result[0]
     }
 
     async findOne(options) {
-        /*
-            Model.findOne({
-                where: {
-                    is_admin: true
-                }
-            })
-        */
+        const results = await this.connection.query(`SELECT 
+        ${(options && options.attributes) ? clauses.attributes(options.attributes) : '*'} 
+        FROM ${this.table}
+        ${handleOptions(options)}
+        LIMIT 1`)
+        return results[0]
     }
 
     async update(newDetsils, options) {
-        /*
-            Model.update( { name: 'test6', email: 'test6@gmail.com' } , {
-                where: {                                                      // first object containing details to update
-                    is_admin: true                                            // second object containing condotion for the query
-                }
-            })
-        */
+        return await this.connection.query(
+            `UPDATE ${this.table} 
+          ${set(newDetsils)}
+          ${handleOptions(options)}`)
     }
 
     async destroy({ force, ...options }) {
-        /*
-            Model.destroy({
-                where: {                                                      
-                    is_admin: true                                            
-                },
-                force: true      // will cause hard delete
-            })
-        */
-
-        /*
-           Model.destroy({
-               where: {                                                      
-                   id: 10                                           
-               },
-               force: false      // will cause soft delete
-           })
-       */
-        /*
-           Model.destroy({
-               where: {                                                      
-                   id: 10                                           
-               },  // will cause soft delete
-           })
-       */
-
+        force ? this.connection.query(
+            `DELETE FROM ${this.table} ${handleOptions(options)}`)
+            : await this.connection.query(`UPDATE users 
+            SET deleted_at=${`\"${new Date().toISOString().slice(0, 19).replace('T', ' ')}\"`} 
+            ${handleOptions(options)}`);
     }
 
     async restore(options) {
-        /*
-           Model.restore({
-               where: {                                                      
-                   id: 12                                          
-               }
-           })
-       */
+        return await this.connection.query(
+            `UPDATE ${this.table} 
+            SET deleted_at = null 
+            ${handleOptions(options)}`);
     }
-
 }
 
 module.exports = { MySequelize };
+
+function set(fields) {
+    const allKeys = Object.keys(fields);
+    return 'set ' + allKeys.reduce((prev, next, index) => {
+        if (index === allKeys.length - 1) {
+            return prev += `${next} = '${fields[next]}'`
+        } else {
+            return prev += `${next} = '${fields[next]}', `
+        }
+    }, '')
+}
+
+function handleOptions(options) {
+    let optionsStatment = options ? Object.keys(options).reduce((prev, next) => {
+        if (next === 'include') {
+            return prev
+        }
+        prev[next] = clauses[next](options[next])
+        return prev
+    }, {})
+        : ''
+
+    return `${optionsStatment.where ? optionsStatment.where : ''} 
+        ${optionsStatment.order ? optionsStatment.order : ''} 
+        ${optionsStatment.limit ? optionsStatment.limit : ''}`
+}

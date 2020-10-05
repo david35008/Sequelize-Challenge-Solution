@@ -1,6 +1,6 @@
-const { MySequelize } = require("./mySequelize");
+const { MySequelize } = require("./index.js");
 const mysql = require("mysql2/promise");
-const { Op } = require('./Op/OpsSymbols')
+const { Op } = require('./Op/OpSymbols')
 
 
 let mysqlCon;
@@ -11,7 +11,7 @@ describe("MySequelize Challenge", () => {
     mysqlCon = await mysql.createConnection({
       host: 'localhost',
       user: 'root',
-      password: null,
+      password: 'david12345',
       database: 'db_test',
       multipleStatements: true,
     });
@@ -200,9 +200,6 @@ describe("MySequelize Challenge", () => {
         ],
       });
 
-      console.log(myResults)
-
-
       expect(myResults[0].id).toBe(results[0][0].id);
       expect(myResults[0].playlists[0].creator).toBe(results[0][0].id);
       expect(myResults[2].playlists.length).toBe(3);
@@ -321,8 +318,6 @@ describe("MySequelize Challenge", () => {
       })
 
       const users = await mysqlCon.query(`SELECT * FROM users `)
-
-      console.log(users[0])
 
       expect(users[0][0].name).toBe('Yoav')
 
@@ -450,11 +445,6 @@ describe("MySequelize Challenge", () => {
           id: "1' UNION SELECT id, name, password FROM users -- "
         }
       })
-
-      console.log(hack)
-      // expect(hack.length).toBe(1)
-
-
     })
   })
 
