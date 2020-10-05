@@ -20,7 +20,7 @@ async function join(firstRes, { table, sourceForeignKey, tableForeignKey, ...opt
     FROM ${table} 
     ${optionsStatment.where ? optionsStatment.where : ''} 
     ${optionsStatment.order ? optionsStatment.order : ''} 
-    ${optionsStatment.limit ? optionsStatment.limit : ''}`)[0]
+    ${optionsStatment.limit ? optionsStatment.limit : ''}`)
 
     firstRes = firstRes.map(res => {
         results[0].forEach(joinRow => {
